@@ -13,8 +13,3 @@ Accuracy : 83.69% | F1 Macro : 81.77% | F1 Urgence : 88.7% (Rappel : 90.3%)
 ## Données
 60 000 tweets issus de CrisisMMD, Multimodal et CrisisLexT26 — 33 catastrophes couvertes.
 
-## Installation
-```bash
-git clone https://github.com/brahimbensalah/crisis-tweet-classification.git
-cd crisis-tweet-classification
-pip install -r requirements.txt
