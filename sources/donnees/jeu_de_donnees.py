@@ -1,22 +1,3 @@
-"""
-jeu_de_donnees.py
-─────────────────
-Dataset PyTorch unifié avec augmentation avancée :
-    • Texte : WordNet synonymes, EDA, rétro-traduction (anglais)
-    • Image : rotation, flip, color jitter (pour éviter overfitting)
-    • Classe Urgence ×3 avec variations
-    • CrisisLexT26 : +28K tweets de crise (texte seul)
-
-Sources :
-    1. CrisisMMD_v2.0  —  Tweets + images Twitter
-    2. Multimodal       —  Paires image/texte par catégorie
-    3. CrisisLexT26     —  Tweets de 26 crises (texte seul)
-
-Mapping vers 3 classes :
-    0 — Urgence (Affected individuals)
-    1 — Info / signalement
-    2 — Non pertinent
-"""
 
 import os
 import sys
@@ -232,13 +213,13 @@ def augmenter_image(image: Image.Image) -> Image.Image:
 def charger_crisimmd(fichiers_tsv=None, utiliser_cache=True) -> pd.DataFrame:
     cache_path = DOSSIER_TRAITEES / "crisimmd_fusionne.csv"
     if utiliser_cache and cache_path.exists():
-        logger.info(f"📦 Cache CrisisMMD chargé")
+        logger.info(f" Cache CrisisMMD chargé")
         return pd.read_csv(cache_path)
     
     if fichiers_tsv is None:
         fichiers_tsv = [f for f in os.listdir(CRISIMMD_ANNOTATIONS) if f.endswith('.tsv') and not f.startswith('._')]
     
-    logger.info(f"📂 Chargement de {len(fichiers_tsv)} fichiers CrisisMMD...")
+    logger.info(f" Chargement de {len(fichiers_tsv)} fichiers CrisisMMD...")
     dataframes = []
     for fichier in sorted(fichiers_tsv):
         df = pd.read_csv(CRISIMMD_ANNOTATIONS / fichier, sep='\t')
@@ -254,12 +235,12 @@ def charger_crisimmd(fichiers_tsv=None, utiliser_cache=True) -> pd.DataFrame:
     
     if utiliser_cache:
         df_total.to_csv(cache_path, index=False)
-    logger.info(f"✅ CrisisMMD : {len(df_total):,} tweets")
+    logger.info(f" CrisisMMD : {len(df_total):,} tweets")
     return df_total
 
 
 def charger_multimodal() -> pd.DataFrame:
-    logger.info("📂 Chargement Multimodal...")
+    logger.info(" Chargement Multimodal...")
     lignes = []
     
     for dossier in os.listdir(MULTIMODAL_RACINE):
@@ -291,7 +272,7 @@ def charger_multimodal() -> pd.DataFrame:
                     })
     
     df = pd.DataFrame(lignes)
-    logger.info(f"✅ Multimodal : {len(df):,} paires")
+    logger.info(f" Multimodal : {len(df):,} paires")
     return df
 
 
@@ -300,7 +281,7 @@ def charger_crisislex_t26(dossier=None) -> pd.DataFrame:
     if dossier is None:
         dossier = RACINE_DONNEES / "CrisisLexT26"
     
-    logger.info("📂 Chargement CrisisLexT26...")
+    logger.info(" Chargement CrisisLexT26...")
     lignes = []
     
     for csv_file in Path(dossier).rglob("*_labeled.csv"):
@@ -328,7 +309,7 @@ def charger_crisislex_t26(dossier=None) -> pd.DataFrame:
             })
     
     df = pd.DataFrame(lignes)
-    logger.info(f"✅ CrisisLexT26 : {len(df):,} tweets")
+    logger.info(f" CrisisLexT26 : {len(df):,} tweets")
     return df
 
 
@@ -376,7 +357,7 @@ def augmenter_classe_urgence(df: pd.DataFrame, facteur: int = 3) -> pd.DataFrame
     df_final = pd.concat([df, df_augmente], ignore_index=True)
     
     nb_final = len(df_final[df_final['classe'] == 0])
-    logger.info(f"   ✅ Urgence : {nb_original} → {nb_final}")
+    logger.info(f"   Urgence : {nb_original} → {nb_final}")
     return df_final
 
 
@@ -385,7 +366,7 @@ def augmenter_classe_urgence(df: pd.DataFrame, facteur: int = 3) -> pd.DataFrame
 # ════════════════════════════════════════════════════════════════════
 
 def nettoyer_textes_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    logger.info("🧹 Nettoyage des textes...")
+    logger.info(" Nettoyage des textes...")
     nettoyeur = NettoyeurTweet(
         supprimer_urls=True, remplacer_mentions=True,
         normaliser_hashtags=True, expandre_abreviations=True,
@@ -417,9 +398,9 @@ def charger_splits_csv(dossier_entree=None):
     for nom in ["train", "val", "test"]:
         chemin = dossier_entree / f"{nom}.csv"
         if not chemin.exists():
-            raise FileNotFoundError(f"❌ {nom}.csv introuvable")
+            raise FileNotFoundError(f" {nom}.csv introuvable")
         dfs[nom] = pd.read_csv(chemin)
-    logger.info(f"📂 Splits : {len(dfs['train']):,} / {len(dfs['val']):,} / {len(dfs['test']):,}")
+    logger.info(f" Splits : {len(dfs['train']):,} / {len(dfs['val']):,} / {len(dfs['test']):,}")
     return dfs["train"], dfs["val"], dfs["test"]
 
 
@@ -439,7 +420,7 @@ def preparer_donnees(
     dossier_csv=None,
 ):
     logger.info("=" * 60)
-    logger.info(f"📦 PRÉPARATION DES DONNÉES (+CrisisLexT26, x{facteur_augmentation})")
+    logger.info(f" PRÉPARATION DES DONNÉES (+CrisisLexT26, x{facteur_augmentation})")
     logger.info("=" * 60)
     
     # Charger toutes les sources
@@ -455,7 +436,7 @@ def preparer_donnees(
         raise ValueError("Aucune source activée !")
     
     df_total = pd.concat(dataframes, ignore_index=True)
-    logger.info(f"📦 Total fusionné : {len(df_total):,}")
+    logger.info(f" Total fusionné : {len(df_total):,}")
     
     # Augmenter Urgence
     if augmenter_urgence:
@@ -488,7 +469,7 @@ def preparer_donnees(
     if sauvegarder_csv:
         sauvegarder_splits_csv(df_train, df_val, df_test, dossier_csv)
     
-    logger.info("✅ Données prêtes !")
+    logger.info(" Données prêtes !")
     return df_train, df_val, df_test
 
 
@@ -550,7 +531,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
     print("=" * 70)
-    print("🧪 TEST — Dataset avec CrisisLexT26 + augmentation")
+    print(" TEST — Dataset avec CrisisLexT26 + augmentation")
     print("=" * 70)
     
     df_train, df_val, df_test = preparer_donnees(
@@ -560,9 +541,9 @@ if __name__ == "__main__":
         sauvegarder_csv=True,
     )
     
-    print(f"\n✅ Colonnes : {list(df_train.columns)}")
+    print(f"\n Colonnes : {list(df_train.columns)}")
     for cl in range(3):
         nb = (df_train['classe'] == cl).sum()
         print(f"   Classe {cl} ({NOMS_CLASSES[cl]}): {nb}")
     
-    print(f"\n✅ jeu_de_donnees.py — Tout OK !")
+    print(f"\n jeu_de_donnees.py — Tout OK !")

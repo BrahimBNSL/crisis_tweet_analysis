@@ -1,23 +1,4 @@
-"""
-traitement_texte.py
-────────────────────
-Nettoyage des tweets bruts et tokenisation via BERTweet.
 
-Pipeline :
-    tweet brut (str)
-        → nettoyage  (NettoyeurTweet)
-            1. Unicode NFC
-            2. URLs
-            3. Mentions
-            4. Hashtags
-            5. Expansion des abréviations  ← NOUVEAU
-            6. Nombres
-            7. Réduction répétitions
-            8. Minuscules (optionnel)
-            9. Espaces
-        → tokenisation BERTweet  (TokeniseurBERTweet)
-        → tenseurs {input_ids, attention_mask}  prêts pour le modèle
-"""
 
 import re
 import unicodedata
@@ -29,13 +10,6 @@ from transformers import AutoTokenizer
 from sources.utilitaires.configuration import cfg
 
 
-# ══════════════════════════════════════════
-# 0.  DICTIONNAIRE D'ABRÉVIATIONS
-# ══════════════════════════════════════════
-
-# Organisé par domaine pour faciliter la maintenance.
-# Clés en MINUSCULES — la correspondance est insensible à la casse.
-# Priorité : entrées plus longues d'abord (gérée à la construction de la regex).
 
 ABREVIATIONS: Dict[str, str] = {
 
@@ -218,7 +192,7 @@ ABREVIATIONS: Dict[str, str] = {
     "gouv":         "gouvernement",
     "min":          "ministère",
 
-    # ── Abréviations arabes translittérées ────────────────────────
+    
     "lbnan":        "Lebanon",
     "byrt":         "Beirut",
     "inshallah":    "god willing",
@@ -232,20 +206,7 @@ ABREVIATIONS: Dict[str, str] = {
 # ══════════════════════════════════════════
 
 class NettoyeurTweet:
-    """
-    Applique une suite de transformations sur le texte brut d'un tweet.
 
-    Ordre des opérations (important — ne pas réarranger) :
-        1. Unicode NFC
-        2. URLs
-        3. Mentions (@user → TOKEN_USER)
-        4. Hashtags (#Beyrouth → HASHTAG Beyrouth)
-        5. Expansion des abréviations  ← AJOUT
-        6. Nombres
-        7. Réduction des caractères répétés
-        8. Minuscules (optionnel)
-        9. Normalisation des espaces
-    """
 
     # Tokens spéciaux reconnus par BERTweet
     TOKEN_USER   = "USER"
@@ -279,43 +240,36 @@ class NettoyeurTweet:
         self.reduire_repetitions   = reduire_repetitions
         self.mettre_minuscules     = mettre_minuscules
 
-        # Fusion dictionnaire global + custom (le custom écrase en cas de conflit)
+        
         self._dict_abrev: Dict[str, str] = {**ABREVIATIONS}
         if abreviations_custom:
             self._dict_abrev.update(abreviations_custom)
 
-        # Construction de la regex d'expansion UNE SEULE FOIS
-        # — tri par longueur décroissante pour éviter les sous-correspondances
-        #   ex : "govt" matché avant "gov"
+       
         if self.expandre_abreviations:
             self._re_abrev = self._construire_regex_abrev()
 
     # ──────────────────────────────────────
     def _construire_regex_abrev(self) -> re.Pattern:
-        """
-        Construit un pattern \b(abrev1|abrev2|...)\b trié par longueur
-        décroissante. Insensible à la casse (re.IGNORECASE).
-        Les séparateurs spéciaux (/ ') sont échappés.
-        """
+       
         tokens = sorted(self._dict_abrev.keys(), key=len, reverse=True)
-        # Échapper les caractères regex (ex: "b/c", "gov't")
+       
         tokens_echappes = [re.escape(t) for t in tokens]
         pattern = r"\b(" + "|".join(tokens_echappes) + r")\b"
         return re.compile(pattern, re.IGNORECASE)
 
     def _expandre(self, match: re.Match) -> str:
-        """Callback pour re.sub — retourne l'expansion en conservant la casse
-        de la première lettre si le mot original commence par une majuscule."""
+        
         mot       = match.group(0)
         expansion = self._dict_abrev[mot.lower()]
-        # Preserve majuscule initiale (ex: "Govt" → "Government")
+        
         if mot[0].isupper():
             expansion = expansion.capitalize()
         return expansion
 
     # ──────────────────────────────────────
     def nettoyer(self, texte: str) -> str:
-        """Retourne le tweet nettoyé et normalisé (str)."""
+        
         if not isinstance(texte, str) or not texte.strip():
             return ""
 
@@ -357,23 +311,17 @@ class NettoyeurTweet:
         return texte
 
     def nettoyer_batch(self, textes: List[str]) -> List[str]:
-        """Nettoie une liste de tweets."""
+        
         return [self.nettoyer(t) for t in textes]
 
     # ──────────────────────────────────────
     def ajouter_abreviations(self, nouvelles: Dict[str, str]) -> None:
-        """
-        Ajoute des abréviations au dictionnaire en cours d'exécution
-        et reconstruit la regex.
-
-        Usage :
-            nettoyeur.ajouter_abreviations({"bey": "Beirut", "leb": "Lebanon"})
-        """
+        
         self._dict_abrev.update({k.lower(): v for k, v in nouvelles.items()})
         self._re_abrev = self._construire_regex_abrev()
 
     def lister_abreviations(self) -> Dict[str, str]:
-        """Retourne le dictionnaire complet (lecture seule)."""
+       
         return dict(self._dict_abrev)
 
 
@@ -382,16 +330,7 @@ class NettoyeurTweet:
 # ══════════════════════════════════════════
 
 class TokeniseurBERTweet:
-    """
-    Encapsule le tokenizer HuggingFace de BERTweet.
-
-    Retourne des tenseurs PyTorch directement utilisables
-    par l'encodeur texte (encodeur_texte.py).
-
-    Paramètres issus de cfg.texte :
-        • nom_modele   = "vinai/bertweet-base"
-        • longueur_max = 128
-    """
+   
 
     def __init__(self, longueur_max: Optional[int] = None):
         self.longueur_max = longueur_max or cfg.texte.longueur_max
@@ -406,15 +345,7 @@ class TokeniseurBERTweet:
 
     # ──────────────────────────────────────
     def tokeniser(self, texte: str) -> Dict[str, torch.Tensor]:
-        """
-        Tokenise un seul tweet nettoyé.
-
-        Retourne :
-            {
-                "input_ids"      : LongTensor [longueur_max],
-                "attention_mask" : LongTensor [longueur_max],
-            }
-        """
+        
         encodage = self.tokenizer(
             texte,
             max_length       = self.longueur_max,
@@ -432,15 +363,7 @@ class TokeniseurBERTweet:
         self,
         textes: List[str],
     ) -> Dict[str, torch.Tensor]:
-        """
-        Tokenise un batch de tweets nettoyés.
-
-        Retourne :
-            {
-                "input_ids"      : LongTensor [B, longueur_max],
-                "attention_mask" : LongTensor [B, longueur_max],
-            }
-        """
+       
         encodage = self.tokenizer(
             textes,
             max_length       = self.longueur_max,
@@ -477,16 +400,7 @@ class TokeniseurBERTweet:
 # ══════════════════════════════════════════
 
 class PipelineTexte:
-    """
-    Combine NettoyeurTweet + TokeniseurBERTweet en un seul objet.
 
-    C'est cette classe que CrisisDataset (jeu_de_donnees.py) utilise.
-
-    Usage :
-        pipeline = PipelineTexte()
-        tenseurs = pipeline("Explosion massive à Beyrouth ! #Liban HTTPURL")
-        # → {"input_ids": ..., "attention_mask": ...}
-    """
 
     def __init__(
         self,
@@ -510,17 +424,17 @@ class PipelineTexte:
 
     # ──────────────────────────────────────
     def __call__(self, texte: str) -> Dict[str, torch.Tensor]:
-        """Nettoie + tokenise un seul tweet."""
+       
         texte_propre = self.nettoyeur.nettoyer(texte)
         return self.tokeniseur.tokeniser(texte_propre)
 
     def traiter_batch(self, textes: List[str]) -> Dict[str, torch.Tensor]:
-        """Nettoie + tokenise un batch de tweets."""
+        
         textes_propres = self.nettoyeur.nettoyer_batch(textes)
         return self.tokeniseur.tokeniser_batch(textes_propres)
 
     def nettoyer_seulement(self, texte: str) -> str:
-        """Retourne uniquement le texte nettoyé (sans tokenisation)."""
+        
         return self.nettoyeur.nettoyer(texte)
 
 
@@ -534,7 +448,7 @@ if __name__ == "__main__":
         "صوت انفجار ضخم في بيروت... #لبنان 💥🙏",
         "RT @RedCross: Please donate to help victims: https://t.co/xyz999 #Lebanon #Crisis",
         "loooool this is so fake 😂😂😂",
-        "",   # cas limite : tweet vide
+        "",   
     ]
 
     print("=" * 60)
@@ -563,4 +477,4 @@ if __name__ == "__main__":
     print(f"  input_ids      shape : {batch['input_ids'].shape}")
     print(f"  attention_mask shape : {batch['attention_mask'].shape}")
     print()
-    print("✓ traitement_texte.py — Tout OK")
+    print(" traitement_texte.py — Tout OK")
