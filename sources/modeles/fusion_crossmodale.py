@@ -1,6 +1,3 @@
-"""
-fusion_crossmodale.py — Cross-Attention + Gate Network
-"""
 
 import logging
 import torch
@@ -73,7 +70,7 @@ class FusionCrossModule(nn.Module):
         self.gate = GateNetwork(dim_projection, dim_gate_cache, dropout) if utiliser_gate else None
         self.dim_sortie = cfg.fusion.dim_sortie
         self.proj_finale = nn.Sequential(nn.Linear(dim_projection, self.dim_sortie), nn.LayerNorm(self.dim_sortie), nn.GELU(), nn.Dropout(dropout))
-        logger.info(f"✅ FusionCrossModule : {dim_texte}+{dim_image} → {dim_projection} → {self.dim_sortie} ({sum(p.numel() for p in self.parameters()):,} params)")
+        logger.info(f" FusionCrossModule : {dim_texte}+{dim_image} → {dim_projection} → {self.dim_sortie} ({sum(p.numel() for p in self.parameters()):,} params)")
     
     def forward(self, emb_texte, emb_image, return_poids=False):
         tp, ip = self.projection(emb_texte, emb_image)

@@ -1,20 +1,4 @@
-"""
-encodeur_texte.py
-─────────────────
-Encodeur de texte basé sur BERTweet pour la classification de tweets de crise.
 
-Architecture :
-    texte nettoyé (str)
-        → TokeniseurBERTweet (input_ids + attention_mask)
-        → BERTweet pré-entraîné (vinai/bertweet-base)
-        → pooled_output [CLS]  →  embedding [768]
-        → projection optionnelle → embedding [dim_sortie]
-
-Utilisation :
-    encodeur = EncodeurTexte()
-    embedding = encodeur("explosion massive HASHTAG Beyrouth USER HTTPURL")
-    # → torch.Tensor de forme [768]
-"""
 
 import logging
 from typing import Dict, Optional, Tuple
@@ -33,19 +17,7 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════
 
 class EncodeurTexte(nn.Module):
-    """
-    Encodeur de texte utilisant BERTweet (ou tout modèle HuggingFace).
     
-    Pipeline :
-        texte → tokenizer → BERTweet → embedding [CLS]
-    
-    Args:
-        nom_modele: Nom du modèle HuggingFace (défaut : cfg.texte.nom_modele)
-        longueur_max: Longueur max des tokens (défaut : cfg.texte.longueur_max)
-        freeze_bert: Si True, gèle les poids de BERTweet
-        dim_projection: Si > 0, ajoute une couche de projection après [CLS]
-        dropout: Taux de dropout après projection
-    """
     
     def __init__(
         self,
@@ -64,7 +36,7 @@ class EncodeurTexte(nn.Module):
         self.dim_sortie = cfg.texte.dim_sortie  # 768 pour BERTweet-base
         
         # ── Tokenizer ──
-        logger.info(f"📥 Chargement du tokenizer : {self.nom_modele}")
+        logger.info(f" Chargement du tokenizer : {self.nom_modele}")
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.nom_modele,
             normalization=True,  # Normalisation BERTweet (emojis → texte)
@@ -72,7 +44,7 @@ class EncodeurTexte(nn.Module):
         )
         
         # ── Modèle BERTweet ──
-        logger.info(f"🧠 Chargement du modèle : {self.nom_modele}")
+        logger.info(f" Chargement du modèle : {self.nom_modele}")
         self.bert = AutoModel.from_pretrained(self.nom_modele)
         
         # Geler les poids si demandé
@@ -90,14 +62,14 @@ class EncodeurTexte(nn.Module):
                 nn.Dropout(dropout),
             )
             self.dim_sortie = dim_projection
-            logger.info(f"📐 Projection ajoutée : {cfg.texte.dim_sortie} → {dim_projection}")
+            logger.info(f"Projection ajoutée : {cfg.texte.dim_sortie} → {dim_projection}")
         else:
             self.projection = None
         
         # Stats
         nb_params_total = sum(p.numel() for p in self.parameters())
         nb_params_train = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        logger.info(f"✅ EncodeurTexte initialisé :")
+        logger.info(f" EncodeurTexte initialisé :")
         logger.info(f"   • Modèle      : {self.nom_modele}")
         logger.info(f"   • Longueur max : {self.longueur_max}")
         logger.info(f"   • Dim sortie  : {self.dim_sortie}")
@@ -110,15 +82,7 @@ class EncodeurTexte(nn.Module):
         self,
         textes: list,
     ) -> Dict[str, torch.Tensor]:
-        """
-        Tokenise une liste de textes (déjà nettoyés).
-        
-        Args:
-            textes: Liste de str
-        
-        Returns:
-            Dictionnaire {input_ids, attention_mask}
-        """
+       
         encodage = self.tokenizer(
             textes,
             max_length=self.longueur_max,
@@ -138,16 +102,7 @@ class EncodeurTexte(nn.Module):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Passe avant : texte tokenisé → embedding.
         
-        Args:
-            input_ids: [B, L] token IDs
-            attention_mask: [B, L] masque d'attention
-        
-        Returns:
-            Embedding [B, dim_sortie]
-        """
         # Passage dans BERTweet
         outputs = self.bert(
             input_ids=input_ids,
@@ -165,15 +120,7 @@ class EncodeurTexte(nn.Module):
     
     # ──────────────────────────────────────
     def encoder_texte(self, texte: str) -> torch.Tensor:
-        """
-        Encode un seul texte (pratique pour l'inférence).
-        
-        Args:
-            texte: Texte nettoyé (str)
-        
-        Returns:
-            Embedding [dim_sortie]
-        """
+       
         tokens = self.tokeniser([texte])
         with torch.no_grad():
             embedding = self.forward(
@@ -184,15 +131,7 @@ class EncodeurTexte(nn.Module):
     
     # ──────────────────────────────────────
     def encoder_batch(self, textes: list) -> torch.Tensor:
-        """
-        Encode un batch de textes.
-        
-        Args:
-            textes: Liste de str
-        
-        Returns:
-            Embeddings [B, dim_sortie]
-        """
+       
         tokens = self.tokeniser(textes)
         device = next(self.parameters()).device
         tokens = {k: v.to(device) for k, v in tokens.items()}
@@ -210,16 +149,7 @@ class EncodeurTexte(nn.Module):
 # ══════════════════════════════════════════
 
 class PipelineTexteComplet(nn.Module):
-    """
-    Pipeline complet : nettoyage → tokenisation → encodage.
     
-    Combine NettoyeurTweet + EncodeurTexte en un seul module.
-    Utile pour l'inférence de bout en bout.
-    
-    Args:
-        encodeur: Instance de EncodeurTexte
-        nettoyeur: Instance de NettoyeurTweet
-    """
     
     def __init__(self, encodeur: EncodeurTexte, nettoyeur):
         super().__init__()
@@ -227,15 +157,7 @@ class PipelineTexteComplet(nn.Module):
         self.nettoyeur = nettoyeur
     
     def forward(self, textes_bruts: list) -> torch.Tensor:
-        """
-        Textes bruts → embeddings.
-        
-        Args:
-            textes_bruts: Liste de textes bruts (non nettoyés)
-        
-        Returns:
-            Embeddings [B, dim_sortie]
-        """
+      
         # Nettoyer les textes
         textes_nettoyes = self.nettoyeur.nettoyer_batch(textes_bruts)
         
@@ -252,7 +174,7 @@ class PipelineTexteComplet(nn.Module):
         return embeddings
     
     def encoder_texte(self, texte_brut: str) -> torch.Tensor:
-        """Un seul texte brut → embedding."""
+       
         texte_nettoye = self.nettoyeur.nettoyer(texte_brut)
         return self.encodeur.encoder_texte(texte_nettoye)
 
@@ -265,16 +187,7 @@ def creer_encodeur_texte(
     freeze_bert: Optional[bool] = None,
     dim_projection: Optional[int] = None,
 ) -> EncodeurTexte:
-    """
-    Fabrique un EncodeurTexte avec la configuration centrale.
-    
-    Args:
-        freeze_bert: Geler BERTweet (défaut : cfg.texte.freeze_bert)
-        dim_projection: Dimension de projection (None = pas de projection)
-    
-    Returns:
-        EncodeurTexte initialisé
-    """
+ 
     return EncodeurTexte(
         nom_modele=cfg.texte.nom_modele,
         longueur_max=cfg.texte.longueur_max,
@@ -287,13 +200,10 @@ def comparer_embeddings(
     encodeur: EncodeurTexte,
     textes: list,
 ) -> None:
-    """
-    Affiche la similarité cosinus entre les embeddings de plusieurs textes.
-    Utile pour vérifier que l'encodeur fonctionne correctement.
-    """
+
     import torch.nn.functional as F
     
-    print("\n📊 Comparaison des embeddings :")
+    print("\nComparaison des embeddings :")
     print("-" * 50)
     
     embeddings = encodeur.encoder_batch(textes)
@@ -319,15 +229,15 @@ if __name__ == "__main__":
     )
     
     print("=" * 70)
-    print("🧪 TEST — EncodeurTexte (BERTweet)")
+    print(" TEST — EncodeurTexte (BERTweet)")
     print("=" * 70)
     
     # ── Test 1 : Création de l'encodeur ──
-    print("\n📌 Test 1 — Création de l'encodeur")
+    print("\n Test 1 — Création de l'encodeur")
     encodeur = creer_encodeur_texte()
     
     # ── Test 2 : Encodage d'un seul texte ──
-    print("\n📌 Test 2 — Encodage d'un seul texte")
+    print("\n Test 2 — Encodage d'un seul texte")
     texte_test = "explosion massive HASHTAG Beyrouth USER HTTPURL injured people need help"
     embedding = encodeur.encoder_texte(texte_test)
     print(f"   Texte  : {texte_test}")
@@ -338,7 +248,7 @@ if __name__ == "__main__":
     print(f"   Max    : {embedding.max().item():.4f}")
     
     # ── Test 3 : Encodage d'un batch ──
-    print("\n📌 Test 3 — Encodage d'un batch")
+    print("\n Test 3 — Encodage d'un batch")
     textes_batch = [
         "HASHTAG BREAKING earthquake in Iran HTTPURL USER",
         "RT USER: Trump pledges NUMBER million for HASHTAG Harvey relief HTTPURL",
@@ -349,18 +259,18 @@ if __name__ == "__main__":
     print(f"   Nombre de textes : {len(textes_batch)}")
     
     # ── Test 4 : Comparaison de similarité ──
-    print("\n📌 Test 4 — Similarité cosinus entre textes")
+    print("\n Test 4 — Similarité cosinus entre textes")
     comparer_embeddings(encodeur, textes_batch)
     
     # ── Test 5 : Tokenisation seule ──
-    print("\n📌 Test 5 — Tokenisation")
+    print("\n Test 5 — Tokenisation")
     tokens = encodeur.tokeniser(textes_batch)
     print(f"   input_ids shape      : {tokens['input_ids'].shape}")
     print(f"   attention_mask shape : {tokens['attention_mask'].shape}")
     print(f"   Tokens non-PAD (moy) : {tokens['attention_mask'].sum(dim=1).float().mean().item():.0f}")
     
     # ── Test 6 : Pipeline complet (avec nettoyage) ──
-    print("\n📌 Test 6 — Pipeline complet (nettoyage + encodage)")
+    print("\n Test 6 — Pipeline complet (nettoyage + encodage)")
     from sources.donnees.traitement_texte import NettoyeurTweet
     
     nettoyeur = NettoyeurTweet()
@@ -377,11 +287,11 @@ if __name__ == "__main__":
     print(f"   Embedding 1  : mean={embeddings_bruts[0].mean():.4f}, std={embeddings_bruts[0].std():.4f}")
     
     # ── Test 7 : Vérification mémoire GPU ──
-    print("\n📌 Test 7 — Info device")
+    print("\n Test 7 — Info device")
     device = next(encodeur.parameters()).device
     print(f"   Device : {device}")
     if torch.cuda.is_available():
         print(f"   GPU    : {torch.cuda.get_device_name(0)}")
         print(f"   Mémoire allouée : {torch.cuda.memory_allocated(0) / 1024**2:.1f} Mo")
     
-    print(f"\n✅ encodeur_texte.py — Tout OK !")
+    print(f"\n encodeur_texte.py — Tout OK !")

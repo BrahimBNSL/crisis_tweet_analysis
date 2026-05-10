@@ -1,18 +1,4 @@
-"""
-classificateur.py
-─────────────────
-Tête de classification finale pour les tweets de crise.
 
-Architecture :
-    Fusion [256] → Dense(256) → BatchNorm → GELU → Dropout(0.3)
-                 → Dense(128) → BatchNorm → GELU → Dropout(0.3)
-                 → Dense(4)   → Softmax
-
-Utilisation :
-    classificateur = ClassificateurCrise()
-    logits = classificateur(embedding_fusion)
-    # → torch.Tensor de forme [B, 4]
-"""
 
 import logging
 from typing import List, Optional, Tuple
@@ -31,17 +17,7 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════
 
 class ClassificateurCrise(nn.Module):
-    """
-    Tête de classification avec couches denses + normalisation + dropout.
-    
-    Args:
-        dim_entree: Dimension d'entrée (défaut : cfg.fusion.dim_sortie = 256)
-        nb_classes: Nombre de classes (défaut : cfg.classes.nb_classes = 4)
-        couches_cachees: Liste des dimensions cachées (défaut : [256, 128])
-        dropout: Taux de dropout
-        activation: 'relu', 'gelu', 'silu'
-        utiliser_batchnorm: Si True, ajoute BatchNorm1d
-    """
+
     
     def __init__(
         self,
@@ -95,7 +71,7 @@ class ClassificateurCrise(nn.Module):
         
         # Stats
         nb_params = sum(p.numel() for p in self.parameters())
-        logger.info(f"✅ ClassificateurCrise initialisé :")
+        logger.info(f" ClassificateurCrise initialisé :")
         logger.info(f"   • Entrée     : {self.dim_entree}")
         logger.info(f"   • Cachées    : {self.couches_cachees}")
         logger.info(f"   • Sortie     : {self.nb_classes}")
@@ -126,16 +102,7 @@ class ClassificateurCrise(nn.Module):
         x: torch.Tensor,
         return_probs: bool = False,
     ) -> torch.Tensor:
-        """
-        Passe avant : embedding → logits ou probabilités.
         
-        Args:
-            x: Tenseur [B, dim_entree]
-            return_probs: Si True, applique softmax
-        
-        Returns:
-            logits [B, nb_classes] ou probas [B, nb_classes]
-        """
         logits = self.reseau(x)
         
         if return_probs:
@@ -145,7 +112,7 @@ class ClassificateurCrise(nn.Module):
     # ─────────────────────────────────────
         
     def predire(self, x, seuil_urgence: float = 0.35):
-     """Prédit avec seuil ajustable pour Urgence."""
+     
      with torch.no_grad():
         probas = self.forward(x, return_probs=True)
         B = probas.size(0)
@@ -162,10 +129,7 @@ class ClassificateurCrise(nn.Module):
 
     # ──────────────────────────────────────
     def get_poids_classes(self, device: torch.device = torch.device("cpu")) -> torch.Tensor:
-        """
-        Retourne les poids des classes pour la loss.
-        Utile pour Focal Loss ou CrossEntropy pondérée.
-        """
+        
         return self.poids_classes.to(device)
 
 
@@ -174,16 +138,7 @@ class ClassificateurCrise(nn.Module):
 # ══════════════════════════════════════════
 
 class ModeleComplet(nn.Module):
-    """
-    Modèle complet : Fusion + Classification.
-    
-    Combine FusionCrossModule et ClassificateurCrise en un seul module.
-    Pratique pour l'entraînement de bout en bout.
-    
-    Args:
-        fusion: Module de fusion cross-modale
-        classificateur: Tête de classification
-    """
+
     
     def __init__(
         self,
@@ -201,18 +156,7 @@ class ModeleComplet(nn.Module):
         return_probs: bool = False,
         return_poids: bool = False,
     ) -> torch.Tensor:
-        """
-        Embeddings texte + image → logits/probas.
-        
-        Args:
-            emb_texte: [B, 768]
-            emb_image: [B, 2048]
-            return_probs: Appliquer softmax
-            return_poids: Retourner les poids du gate
-        
-        Returns:
-            logits [B, 4] ou (logits, poids_gate)
-        """
+       
         if return_poids:
             fusion_out, poids_gate = self.fusion(emb_texte, emb_image, return_poids=True)
             logits = self.classificateur(fusion_out, return_probs=return_probs)
@@ -227,13 +171,7 @@ class ModeleComplet(nn.Module):
         emb_texte: torch.Tensor,
         emb_image: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Prédit la classe pour un batch.
-        
-        Returns:
-            classes: [B]
-            probas: [B, 4]
-        """
+       
         fusion_out = self.fusion(emb_texte, emb_image)
         return self.classificateur.predire(fusion_out)
 
@@ -246,7 +184,7 @@ def creer_classificateur(
     dim_entree: Optional[int] = None,
     nb_classes: Optional[int] = None,
 ) -> ClassificateurCrise:
-    """Fabrique un classificateur avec la configuration centrale."""
+   
     return ClassificateurCrise(
         dim_entree=dim_entree,
         nb_classes=nb_classes,
@@ -257,12 +195,7 @@ def creer_modele_complet(
     fusion: Optional[nn.Module] = None,
     classificateur: Optional[ClassificateurCrise] = None,
 ) -> ModeleComplet:
-    """
-    Crée le modèle complet (fusion + classification).
-    
-    Si fusion ou classificateur ne sont pas fournis, ils sont créés
-    avec la configuration par défaut.
-    """
+   
     from sources.modeles.fusion_crossmodale import FusionCrossModule
     
     if fusion is None:
@@ -274,11 +207,11 @@ def creer_modele_complet(
 
 
 def resume_modele(modele: ModeleComplet) -> None:
-    """Affiche un résumé du modèle complet."""
+   
     nb_params_total = sum(p.numel() for p in modele.parameters())
     nb_params_train = sum(p.numel() for p in modele.parameters() if p.requires_grad)
     
-    print(f"\n📋 Résumé du modèle complet :")
+    print(f"\n Résumé du modèle complet :")
     print(f"   ═══════════════════════════════════")
     print(f"   Fusion       : {sum(p.numel() for p in modele.fusion.parameters()):,} params")
     print(f"   Classifieur  : {sum(p.numel() for p in modele.classificateur.parameters()):,} params")
@@ -298,15 +231,15 @@ if __name__ == "__main__":
     )
     
     print("=" * 70)
-    print("🧪 TEST — Classificateur + Modèle Complet")
+    print(" TEST — Classificateur + Modèle Complet")
     print("=" * 70)
     
     # ── Test 1 : Création du classificateur ──
-    print("\n📌 Test 1 — Création du classificateur")
+    print("\n Test 1 — Création du classificateur")
     classificateur = creer_classificateur()
     
     # ── Test 2 : Forward ──
-    print("\n📌 Test 2 — Forward (logits)")
+    print("\n Test 2 — Forward (logits)")
     B = 4
     x = torch.randn(B, 256)  # Simule la sortie de fusion
     logits = classificateur(x)
@@ -315,26 +248,26 @@ if __name__ == "__main__":
     print(f"   Logits  :\n{logits}")
     
     # ── Test 3 : Probabilités ──
-    print("\n📌 Test 3 — Probabilités (softmax)")
+    print("\n Test 3 — Probabilités (softmax)")
     probas = classificateur(x, return_probs=True)
     print(f"   Probas  : {probas.shape}")
     print(f"   Probas  :\n{probas}")
     print(f"   Somme par ligne : {probas.sum(dim=1)}")
     
     # ── Test 4 : Prédiction ──
-    print("\n📌 Test 4 — Prédiction")
+    print("\n Test 4 — Prédiction")
     classes, probas = classificateur.predire(x)
     print(f"   Classes prédites : {classes}")
     print(f"   Confiance max    : {probas.max(dim=1)[0]}")
     
     # ── Test 5 : Poids des classes ──
-    print("\n📌 Test 5 — Poids des classes")
+    print("\n Test 5 — Poids des classes")
     poids = classificateur.get_poids_classes()
     for i, nom in enumerate(cfg.classes.noms):
         print(f"   Classe {i} ({nom}): poids = {poids[i]:.1f}")
     
     # ── Test 6 : Modèle complet ──
-    print("\n📌 Test 6 — Modèle complet (Fusion + Classification)")
+    print("\n Test 6 — Modèle complet (Fusion + Classification)")
     modele_complet = creer_modele_complet()
     emb_texte = torch.randn(B, 768)
     emb_image = torch.randn(B, 2048)
@@ -345,7 +278,7 @@ if __name__ == "__main__":
     print(f"   Logits       : {logits_complet.shape}")
     
     # ── Test 7 : Prédiction complète ──
-    print("\n📌 Test 7 — Prédiction bout en bout")
+    print("\n Test 7 — Prédiction bout en bout")
     classes_complet, probas_complet = modele_complet.predire(emb_texte, emb_image)
     print(f"   Classes prédites : {classes_complet}")
     for i in range(B):
@@ -353,11 +286,11 @@ if __name__ == "__main__":
         print(f"   [{i}] Top-2 : classes={top2.indices.tolist()}, probs={top2.values.tolist()}")
     
     # ── Test 8 : Résumé du modèle ──
-    print("\n📌 Test 8 — Résumé du modèle complet")
+    print("\n Test 8 — Résumé du modèle complet")
     resume_modele(modele_complet)
     
     # ── Test 9 : Backpropagation ──
-    print("\n📌 Test 9 — Vérification backpropagation")
+    print("\n Test 9 — Vérification backpropagation")
     x_grad = torch.randn(2, 256, requires_grad=True)
     logits_grad = classificateur(x_grad)
     loss = logits_grad.sum()
@@ -366,7 +299,7 @@ if __name__ == "__main__":
     print(f"   Norm gradient   : {x_grad.grad.norm().item():.4f}")
     
     # ── Test 10 : GPU ──
-    print("\n📌 Test 10 — Test GPU")
+    print("\n Test 10 — Test GPU")
     if torch.cuda.is_available():
         classificateur_gpu = classificateur.to("cuda")
         x_gpu = torch.randn(8, 256).to("cuda")
@@ -378,4 +311,4 @@ if __name__ == "__main__":
     else:
         print("   GPU non disponible")
     
-    print(f"\n✅ classificateur.py — Tout OK !")
+    print(f"\n classificateur.py — Tout OK !")
