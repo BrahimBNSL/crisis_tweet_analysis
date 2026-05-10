@@ -1,13 +1,3 @@
-"""
-lancer_entrainement.py
-───────────────────────
-Script principal pour lancer l'entraînement complet du modèle multimodal
-de classification de tweets de crise.
-
-Utilisation :
-    python -m sources.entrainement.lancer_entrainement
-    python -m sources.entrainement.lancer_entrainement --epochs 30 --batch_size 8 --device cuda
-"""
 
 import sys
 import logging
@@ -47,12 +37,12 @@ def parser_arguments():
 
 def main():
     print("\n" + "=" * 80)
-    print("🚨 CLASSIFICATION MULTIMODALE DE TWEETS DE CRISE")
+    print(" CLASSIFICATION MULTIMODALE DE TWEETS DE CRISE")
     print("=" * 80)
     
     args = parser_arguments()
     
-    print(f"\n⚙️  Configuration :")
+    print(f"\n  Configuration :")
     print(f"   • Device        : {args.device}")
     print(f"   • Epochs        : {args.epochs}")
     print(f"   • Batch size    : {args.batch_size}")
@@ -63,7 +53,7 @@ def main():
     
     # Vérifier GPU
     if args.device == "cuda" and not torch.cuda.is_available():
-        logger.warning("⚠️  CUDA non disponible → basculement sur CPU")
+        logger.warning("  CUDA non disponible → basculement sur CPU")
         args.device = "cpu"
     
     if args.device == "cuda":
@@ -71,7 +61,7 @@ def main():
         logger.info(f"   Mémoire totale : {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} Go")
     
     # DataLoaders
-    logger.info("📦 Création des DataLoaders...")
+    logger.info(" Création des DataLoaders...")
     train_loader, val_loader, test_loader = creer_data_loaders(
         batch_size=args.batch_size,
         nb_workers=0,
@@ -79,7 +69,7 @@ def main():
     
     # Entraînement
     logger.info(f"\n{'='*80}")
-    logger.info("🚀 LANCEMENT DE L'ENTRAÎNEMENT")
+    logger.info(" LANCEMENT DE L'ENTRAÎNEMENT")
     logger.info(f"{'='*80}")
     
     historique = lancer_entrainement(
@@ -95,11 +85,11 @@ def main():
     
     # Résumé
     print("\n" + "=" * 80)
-    print("✅ ENTRAÎNEMENT TERMINÉ !")
+    print(" ENTRAÎNEMENT TERMINÉ !")
     print("=" * 80)
-    print(f"   📁 Checkpoints : {args.dossier_checkpoint}")
-    print(f"   📊 Historique  : {args.dossier_checkpoint}/historique_entrainement.json")
-    print(f"   📝 Log         : entrainement.log")
+    print(f"    Checkpoints : {args.dossier_checkpoint}")
+    print(f"    Historique  : {args.dossier_checkpoint}/historique_entrainement.json")
+    print(f"    Log         : entrainement.log")
     
     if historique["val_loss"]:
         print(f"\n   Meilleure val_loss : {min(historique['val_loss']):.4f}")

@@ -1,18 +1,4 @@
-"""
-fonctions_perte.py
-───────────────────
-Fonctions de perte spécialisées pour la classification de tweets de crise.
 
-Stratégies :
-    1. Focal Loss        — Réduit l'impact des exemples faciles (classes majoritaires)
-    2. Weighted CE       — CrossEntropy pondérée par les poids de classes
-    3. Focal + Weighted  — Combine les deux pour un déséquilibre extrême
-    4. Label Smoothing   — Régularisation contre l'overfitting
-
-Utilisation :
-    loss_fn = creer_fonction_perte(type_perte="focal_weighted")
-    loss = loss_fn(logits, cibles)
-"""
 
 import logging
 from typing import Optional, List
@@ -31,23 +17,7 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════
 
 class FocalLoss(nn.Module):
-    """
-    Focal Loss pour le déséquilibre de classes.
-    
-    FL(p) = -α * (1 - p)^γ * log(p)
-    
-    Où :
-        p   = probabilité prédite pour la vraie classe
-        α   = facteur de pondération des classes (alpha)
-        γ   = facteur de focalisation (gamma)
-    
-    Plus γ est grand, plus on réduit la contribution des exemples faciles.
-    
-    Args:
-        alpha: Poids par classe [nb_classes] ou float
-        gamma: Facteur de focalisation (défaut : 2.0)
-        reduction: 'mean' | 'sum' | 'none'
-    """
+ 
     
     def __init__(
         self,
@@ -56,27 +26,18 @@ class FocalLoss(nn.Module):
         reduction: str = "mean",
     ):
         super().__init__()
-        self.alpha = alpha          # Poids par classe
-        self.gamma = gamma          # Focalisation
+        self.alpha = alpha          
+        self.gamma = gamma          
         self.reduction = reduction
         
-        logger.info(f"🎯 FocalLoss initialisée : γ={gamma}, α={'oui' if alpha is not None else 'non'}")
+        logger.info(f" FocalLoss initialisée : γ={gamma}, α={'oui' if alpha is not None else 'non'}")
     
     def forward(
         self,
         logits: torch.Tensor,
         cibles: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Calcule la Focal Loss.
         
-        Args:
-            logits: [B, nb_classes] logits bruts (avant softmax)
-            cibles: [B] indices des classes
-        
-        Returns:
-            Perte scalaire (ou par élément si reduction='none')
-        """
         # Calculer les probabilités
         log_probs = F.log_softmax(logits, dim=-1)
         probs = torch.exp(log_probs)
@@ -112,21 +73,7 @@ class FocalLoss(nn.Module):
 # ══════════════════════════════════════════
 
 class FocalLossWeighted(nn.Module):
-    """
-    Focal Loss avec pondération automatique des classes.
     
-    Combine :
-        • Focal Loss (gamma)
-        • Poids inverses à la fréquence des classes
-        • Option de label smoothing
-    
-    Args:
-        nb_classes: Nombre de classes
-        gamma: Facteur de focalisation
-        poids_classes: Poids par classe (si None, calculé automatiquement)
-        label_smoothing: Taux de label smoothing
-        reduction: 'mean' | 'sum' | 'none'
-    """
     
     def __init__(
         self,
@@ -148,7 +95,7 @@ class FocalLossWeighted(nn.Module):
         else:
             self.poids_classes = torch.tensor(cfg.classes.poids)
         
-        logger.info(f"🎯 FocalLossWeighted : γ={gamma}, smoothing={label_smoothing}")
+        logger.info(f" FocalLossWeighted : γ={gamma}, smoothing={label_smoothing}")
         logger.info(f"   Poids : {self.poids_classes.tolist()}")
     
     def forward(
@@ -156,14 +103,7 @@ class FocalLossWeighted(nn.Module):
         logits: torch.Tensor,
         cibles: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Args:
-            logits: [B, nb_classes]
-            cibles: [B]
-        
-        Returns:
-            Perte scalaire
-        """
+    
         B = logits.size(0)
         
         # Déplacer les poids sur le bon device
@@ -206,15 +146,9 @@ class FocalLossWeighted(nn.Module):
             return loss
 
 
-# ══════════════════════════════════════════
-# 3.  CROSS ENTROPY PONDÉRÉE
-# ══════════════════════════════════════════
 
 class WeightedCrossEntropy(nn.Module):
-    """
-    CrossEntropy simple avec poids de classes.
-    Utile comme baseline.
-    """
+ 
     
     def __init__(
         self,
@@ -230,7 +164,7 @@ class WeightedCrossEntropy(nn.Module):
         
         self.label_smoothing = label_smoothing
         
-        logger.info(f"📊 WeightedCrossEntropy : smoothing={label_smoothing}")
+        logger.info(f" WeightedCrossEntropy : smoothing={label_smoothing}")
         logger.info(f"   Poids : {self.poids.tolist()}")
     
     def forward(
@@ -254,13 +188,7 @@ class WeightedCrossEntropy(nn.Module):
 # ══════════════════════════════════════════
 
 class PerteMixte(nn.Module):
-    """
-    Combine Focal Loss + une perte auxiliaire.
-    
-    Utile pour l'apprentissage multi-tâche ou la régularisation.
-    
-    loss = λ1 * focal_loss + λ2 * perte_auxiliaire
-    """
+   
     
     def __init__(
         self,
@@ -290,9 +218,6 @@ class PerteMixte(nn.Module):
         return loss
 
 
-# ══════════════════════════════════════════
-# 5.  FACTORY DE FONCTIONS DE PERTE
-# ══════════════════════════════════════════
 
 def creer_fonction_perte(
     type_perte: str = "focal_weighted",
@@ -302,20 +227,7 @@ def creer_fonction_perte(
     label_smoothing: float = 0.0,
     reduction: str = "mean",
 ) -> nn.Module:
-    """
-    Fabrique la fonction de perte appropriée.
     
-    Args:
-        type_perte: 'focal', 'focal_weighted', 'weighted_ce', 'ce'
-        nb_classes: Nombre de classes
-        gamma: Facteur de focalisation (défaut : cfg.entrainement.focal_gamma)
-        poids_classes: Poids par classe (défaut : cfg.classes.poids)
-        label_smoothing: Taux de label smoothing
-        reduction: 'mean' | 'sum' | 'none'
-    
-    Returns:
-        Module de perte
-    """
     if gamma is None:
         gamma = cfg.entrainement.focal_gamma
     
@@ -346,11 +258,11 @@ def creer_fonction_perte(
     }
     
     if type_perte not in mapping:
-        logger.warning(f"⚠️  Type de perte '{type_perte}' inconnu. Utilisation de 'focal_weighted'.")
+        logger.warning(f"  Type de perte '{type_perte}' inconnu. Utilisation de 'focal_weighted'.")
         type_perte = "focal_weighted"
     
     perte = mapping[type_perte]()
-    logger.info(f"✅ Fonction de perte créée : {type_perte}")
+    logger.info(f" Fonction de perte créée : {type_perte}")
     return perte
 
 
@@ -359,10 +271,7 @@ def creer_fonction_perte(
 # ══════════════════════════════════════════
 
 class MoniteurPerte:
-    """
-    Suivi des pertes par classe pendant l'entraînement.
-    Utile pour détecter le surapprentissage ou l'oubli catastrophique.
-    """
+   
     
     def __init__(self, nb_classes: int = 4):
         self.nb_classes = nb_classes
@@ -378,7 +287,7 @@ class MoniteurPerte:
         cibles: torch.Tensor,
         perte_fn: nn.Module,
     ):
-        """Enregistre la perte globale et par classe."""
+        
         with torch.no_grad():
             # Perte globale
             perte = perte_fn(logits, cibles)
@@ -392,7 +301,7 @@ class MoniteurPerte:
                     self.perte_par_classe[classe].append(perte_classe.item())
     
     def get_stats(self) -> dict:
-        """Retourne les statistiques de perte."""
+        
         import numpy as np
         
         stats = {
@@ -413,7 +322,7 @@ class MoniteurPerte:
         return stats
     
     def afficher(self):
-        """Affiche un résumé des pertes."""
+      
         stats = self.get_stats()
         print(f"\n📊 Moniteur de perte :")
         print(f"   Globale : mean={stats['globale']['mean']:.4f} ± {stats['globale']['std']:.4f}")
@@ -434,7 +343,7 @@ if __name__ == "__main__":
     )
     
     print("=" * 70)
-    print("🧪 TEST — Fonctions de Perte")
+    print(" TEST — Fonctions de Perte")
     print("=" * 70)
     
     # Créer des données factices déséquilibrées
@@ -449,36 +358,36 @@ if __name__ == "__main__":
     logits = torch.randn(B, nb_classes)
     logits[range(B), cibles] += 2.0  # Boost pour la vraie classe
     
-    print(f"\n📊 Distribution du batch :")
+    print(f"\n Distribution du batch :")
     for c in range(nb_classes):
         print(f"   Classe {c} : {(cibles == c).sum().item()} exemples")
     
     # ── Test 1 : CrossEntropy simple ──
-    print("\n📌 Test 1 — CrossEntropy simple")
+    print("\n Test 1 — CrossEntropy simple")
     ce = nn.CrossEntropyLoss()
     loss_ce = ce(logits, cibles)
     print(f"   Loss CE simple : {loss_ce.item():.4f}")
     
     # ── Test 2 : Focal Loss ──
-    print("\n📌 Test 2 — Focal Loss")
+    print("\n Test 2 — Focal Loss")
     focal = creer_fonction_perte("focal", gamma=2.0)
     loss_focal = focal(logits, cibles)
     print(f"   Loss Focal : {loss_focal.item():.4f}")
     
     # ── Test 3 : Focal Loss Weighted ──
-    print("\n📌 Test 3 — Focal Loss Weighted")
+    print("\n Test 3 — Focal Loss Weighted")
     focal_w = creer_fonction_perte("focal_weighted", gamma=2.0)
     loss_focal_w = focal_w(logits, cibles)
     print(f"   Loss Focal Weighted : {loss_focal_w.item():.4f}")
     
     # ── Test 4 : Weighted CrossEntropy ──
-    print("\n📌 Test 4 — Weighted CrossEntropy")
+    print("\n Test 4 — Weighted CrossEntropy")
     wce = creer_fonction_perte("weighted_ce")
     loss_wce = wce(logits, cibles)
     print(f"   Loss WCE : {loss_wce.item():.4f}")
     
     # ── Test 5 : Comparaison ──
-    print("\n📌 Test 5 — Comparaison des pertes")
+    print("\n Test 5 — Comparaison des pertes")
     pertes = {
         "CE simple": loss_ce.item(),
         "Focal": loss_focal.item(),
@@ -489,20 +398,20 @@ if __name__ == "__main__":
         print(f"   {nom:<20} : {val:.4f}")
     
     # ── Test 6 : Label Smoothing ──
-    print("\n📌 Test 6 — Avec Label Smoothing")
+    print("\n Test 6 — Avec Label Smoothing")
     focal_smooth = creer_fonction_perte("focal_weighted", label_smoothing=0.1)
     loss_smooth = focal_smooth(logits, cibles)
     print(f"   Loss avec smoothing : {loss_smooth.item():.4f}")
     
     # ── Test 7 : Moniteur de perte ──
-    print("\n📌 Test 7 — Moniteur de perte")
+    print("\n Test 7 — Moniteur de perte")
     moniteur = MoniteurPerte(nb_classes=3)
     for _ in range(5):
         moniteur.update(logits, cibles, focal_w)
     moniteur.afficher()
     
     # ── Test 8 : Vérification gradients ──
-    print("\n📌 Test 8 — Vérification backpropagation")
+    print("\n Test 8 — Vérification backpropagation")
     logits_grad = torch.randn(8, 4, requires_grad=True)
     cibles_grad = torch.randint(0, 4, (8,))
     loss_grad = focal_w(logits_grad, cibles_grad)
@@ -511,7 +420,7 @@ if __name__ == "__main__":
     print(f"   Norm grad : {logits_grad.grad.norm().item():.4f}")
     
     # ── Test 9 : Cohérence des pertes ──
-    print("\n📌 Test 9 — Test de cohérence")
+    print("\n Test 9 — Test de cohérence")
     # Si logits = [100, 0, 0, 0] et cible = 0, la perte doit être ~0
     logits_confiants = torch.tensor([[100.0, 0.0, 0.0, 0.0]])
     cible_confiante = torch.tensor([0])
@@ -525,4 +434,4 @@ if __name__ == "__main__":
     print(f"   Perte exemple difficile (p≈0.25) : {loss_incertaine.item():.4f}")
     print(f"   Ratio difficile/facile : {loss_incertaine.item() / max(loss_confiante.item(), 1e-8):.1f}x")
     
-    print(f"\n✅ fonctions_perte.py — Tout OK !")
+    print(f"\n fonctions_perte.py — Tout OK !")

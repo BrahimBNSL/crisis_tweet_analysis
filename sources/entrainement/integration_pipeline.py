@@ -1,18 +1,4 @@
-"""
-integration_pipeline.py
-────────────────────────
-Intégration complète du pipeline multimodal pour l'entraînement réel.
 
-Pipeline optimisé :
-    Texte brut → NettoyeurTweet → BERTweet (gelé + LoRA + 2 couches unfreeze) → [768]
-    Image → TraiteurImage → ResNet-50 (gelé) → [2048]
-    Fusion Cross-Attention + Gate → [256]
-    Classificateur → 3 classes (Urgence, Info, Non pertinent)
-
-Utilisation :
-    pipeline = assembler_pipeline()
-    logits = pipeline(textes, images)
-"""
 
 import logging
 from pathlib import Path
@@ -34,7 +20,7 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════
 
 class PipelineCrise(nn.Module):
-    """Pipeline complet : nettoyage → encodeurs → fusion → classification."""
+    
     
     def __init__(self, modele_complet, encodeur_texte, encodeur_image, nettoyeur, traiteur_image, device=None):
         super().__init__()
@@ -48,7 +34,7 @@ class PipelineCrise(nn.Module):
         self.encodeur_texte = self.encodeur_texte.to(self.device)
         self.encodeur_image = self.encodeur_image.to(self.device)
         self.modele_complet = self.modele_complet.to(self.device)
-        logger.info(f"🔧 PipelineCrise initialisé sur {self.device}")
+        logger.info(f" PipelineCrise initialisé sur {self.device}")
     
     def _encoder_texte(self, textes):
         textes_nettoyes = self.nettoyeur.nettoyer_batch(textes)
@@ -78,24 +64,16 @@ class PipelineCrise(nn.Module):
         return torch.argmax(probas, dim=-1), probas
 
 
-# ══════════════════════════════════════════
-# 2.  ASSEMBLAGE DU PIPELINE
-# ══════════════════════════════════════════
 
 def assembler_pipeline(
     device=None,
     utiliser_gate=True,
     freeze_bert=True,
-    unfreeze_2_couches=True,  # ← NOUVEAU
+    unfreeze_2_couches=True, 
     freeze_resnet=True,
     utiliser_lora=True,
 ) -> PipelineCrise:
-    """
-    Assemble le pipeline optimisé.
-    
-    Args:
-        unfreeze_2_couches: Débloquer les 2 dernières couches de BERTweet
-    """
+   
     from sources.donnees.traitement_texte import NettoyeurTweet
     from sources.donnees.traitement_images import TraiteurImage
     from sources.modeles.encodeur_texte import EncodeurTexte
@@ -121,7 +99,7 @@ def assembler_pipeline(
     
     # 4. Débloquer les 2 dernières couches de BERTweet
     if unfreeze_2_couches:
-        logger.info("🔓 Déblocage des 2 dernières couches de BERTweet...")
+        logger.info(" Déblocage des 2 dernières couches de BERTweet...")
         nb_debloque = 0
         for name, param in encodeur_texte.bert.named_parameters():
             if any(k in name for k in ['encoder.layer.10', 'encoder.layer.11', 'pooler']):
@@ -129,7 +107,7 @@ def assembler_pipeline(
                 nb_debloque += 1
             else:
                 param.requires_grad = False
-        logger.info(f"   ✅ {nb_debloque} paramètres débloqués (+~25M params)")
+        logger.info(f"    {nb_debloque} paramètres débloqués (+~25M params)")
     
     # 5. Appliquer LoRA à BERTweet
     if utiliser_lora:
@@ -138,9 +116,9 @@ def assembler_pipeline(
             lora_config = LoraConfig(r=16, lora_alpha=32, target_modules=["query", "value"], lora_dropout=0.1)
             encodeur_texte.bert = get_peft_model(encodeur_texte.bert, lora_config)
             nb_lora = sum(p.numel() for p in encodeur_texte.bert.parameters() if p.requires_grad)
-            logger.info(f"🔧 LoRA appliqué (+{nb_lora:,} params)")
+            logger.info(f" LoRA appliqué (+{nb_lora:,} params)")
         except ImportError:
-            logger.warning("⚠️  peft non installé")
+            logger.warning("  peft non installé")
     
     # 6. Encodeur image (ResNet GELÉ)
     encodeur_image = EncodeurImage(freeze_backbone=freeze_resnet)
@@ -160,14 +138,11 @@ def assembler_pipeline(
     
     nb_total = sum(p.numel() for p in pipeline.parameters())
     nb_train = sum(p.numel() for p in pipeline.parameters() if p.requires_grad)
-    logger.info(f"✅ Pipeline assemblé : {nb_total:,} total, {nb_train:,} entraînables ({(nb_train/nb_total)*100:.1f}%)")
+    logger.info(f" Pipeline assemblé : {nb_total:,} total, {nb_train:,} entraînables ({(nb_train/nb_total)*100:.1f}%)")
     
     return pipeline
 
 
-# ══════════════════════════════════════════
-# 3.  FONCTION D'ENTRAÎNEMENT
-# ══════════════════════════════════════════
 
 def lancer_entrainement(
     train_loader, val_loader, test_loader=None,
@@ -197,7 +172,7 @@ def lancer_entrainement(
     
     if test_loader is not None:
         resultats = trainer.evaluer_test(test_loader)
-        logger.info(f"📊 Test Acc: {resultats['test_acc']:.4f} | Test F1: {resultats['test_f1']:.4f}")
+        logger.info(f" Test Acc: {resultats['test_acc']:.4f} | Test F1: {resultats['test_f1']:.4f}")
     
     return historique
 
@@ -210,7 +185,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
     print("=" * 70)
-    print("🧪 TEST — Pipeline (Cross-Attention + LoRA + 2 couches BERT)")
+    print(" TEST — Pipeline (Cross-Attention + LoRA + 2 couches BERT)")
     print("=" * 70)
     
     pipeline = assembler_pipeline(device="cpu", utiliser_lora=True, unfreeze_2_couches=True)
@@ -231,4 +206,4 @@ if __name__ == "__main__":
     has_grad = any(p.grad is not None and p.grad.abs().sum() > 0 for p in pipeline.parameters() if p.requires_grad)
     print(f"   Gradients : {'✓ OK' if has_grad else '✗ Échec'}")
     
-    print(f"\n✅ integration_pipeline.py — Tout OK !")
+    print(f"\n integration_pipeline.py — Tout OK !")

@@ -1,18 +1,4 @@
-"""
-boucle_entrainement.py
-───────────────────────
-Boucle d'entraînement complète avec :
-    • Optimiseur AdamW avec LRs différenciés (BERT, ResNet, custom)
-    • Cosine LR scheduler + warmup
-    • Early stopping sur F1-macro (mode=max)
-    • Gradient clipping
-    • Sauvegarde du meilleur modèle
-    • Métriques : Loss + Accuracy + F1-macro + rapport par classe
 
-Utilisation :
-    from sources.entrainement.integration_pipeline import lancer_entrainement
-    historique = lancer_entrainement(train_loader, val_loader, test_loader)
-"""
 
 import logging
 import time
@@ -38,15 +24,7 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════
 
 def collate_fn_multimodal(batch: List[Dict]) -> Dict:
-    """
-    Collate function pour le DataLoader multimodal.
-
-    Gère :
-        • texte (str)         → liste de str
-        • image (PIL ou None) → liste
-        • has_image (bool)    → tensor [B]  ← masque de modalité
-        • classe (int)        → tensor [B]
-    """
+    
     texte       = [item["texte"] for item in batch]
     image       = [item["image"] for item in batch]
     classe      = torch.tensor([item["classe"] for item in batch], dtype=torch.long)
@@ -73,13 +51,7 @@ def collate_fn_multimodal(batch: List[Dict]) -> Dict:
 # ══════════════════════════════════════════
 
 class WarmupCosineScheduler:
-    """
-    Cosine Annealing avec warmup linéaire.
-
-    Phases :
-        1. Warmup  : LR  0 → lr_max  (warmup_epochs epochs)
-        2. Cosine  : LR  lr_max → lr_min  (reste)
-    """
+    
 
     def __init__(
         self,
@@ -118,15 +90,7 @@ class WarmupCosineScheduler:
 # ══════════════════════════════════════════
 
 class EarlyStopping:
-    """
-    Arrêt anticipé basé sur le F1-macro de validation.
-
-    Args:
-        patience          : epochs sans amélioration avant arrêt
-        delta_min         : amélioration minimale significative
-        mode              : 'max' (F1) ou 'min' (loss)
-        sauvegarder_meilleur : conserver les poids du meilleur checkpoint
-    """
+    
 
     def __init__(
         self,
@@ -146,7 +110,7 @@ class EarlyStopping:
         self.meilleur_etat    = None
 
         logger.info(
-            f"🛑 EarlyStopping : patience={patience}, "
+            f" EarlyStopping : patience={patience}, "
             f"delta={delta_min}, mode={mode}"
         )
 
@@ -172,10 +136,10 @@ class EarlyStopping:
         return self.early_stop
 
     def restaurer_meilleur(self, modele: nn.Module) -> None:
-        """Recharge les poids du meilleur checkpoint en mémoire."""
+        
         if self.meilleur_etat is not None:
             modele.load_state_dict(self.meilleur_etat)
-            logger.info("📦 Meilleur modèle restauré !")
+            logger.info(" Meilleur modèle restauré !")
 
 
 # ══════════════════════════════════════════
@@ -183,20 +147,7 @@ class EarlyStopping:
 # ══════════════════════════════════════════
 
 class Entraineur:
-    """
-    Boucle d'entraînement de base — NE PAS utiliser directement.
-
-    Utilisez EntraineurPipeline (défini dans integration_pipeline.py)
-    qui hérite de cette classe et implémente les vrais forwards
-    texte+image via PipelineCrise.
-
-    Cette classe fournit uniquement l'infrastructure commune :
-        • Optimiseur AdamW avec groupes de LR
-        • Scheduler WarmupCosine
-        • Early stopping sur F1-macro
-        • Sauvegarde / chargement de checkpoint
-        • Historique et logging
-    """
+   
 
     def __init__(
         self,
@@ -269,7 +220,7 @@ class Entraineur:
                 wandb.init(project=cfg.journalisation.projet_wandb)
                 self.wandb = wandb
             except ImportError:
-                logger.warning("⚠️  WandB non installé → logging désactivé.")
+                logger.warning("  WandB non installé → logging désactivé.")
                 self.utiliser_wandb = False
 
         # ── Historique ──
@@ -282,7 +233,7 @@ class Entraineur:
         }
 
         nb_params = sum(p.numel() for p in modele.parameters() if p.requires_grad)
-        logger.info("🚀 Entraineur initialisé :")
+        logger.info(" Entraineur initialisé :")
         logger.info(f"   • Device      : {self.device}")
         logger.info(f"   • Epochs      : {self.epochs}")
         logger.info(f"   • Warmup      : {self.warmup_epochs} epochs")
@@ -300,12 +251,7 @@ class Entraineur:
         lr_resnet: float,
         lr_reste : float,
     ) -> AdamW:
-        """
-        Groupes de LR différenciés :
-            • encodeur_texte / bert  → lr_bert   (pré-entraîné, LR faible)
-            • encodeur_image / resnet / backbone → lr_resnet
-            • reste (fusion, classif, LoRA) → lr_reste
-        """
+        
         params_bert   = []
         params_resnet = []
         params_reste  = []
@@ -363,14 +309,9 @@ class Entraineur:
 
     # ──────────────────────────────────────
     def entrainer(self) -> Dict:
-        """
-        Boucle principale : train → val → early stopping → sauvegarde.
-
-        Returns:
-            Historique des métriques (dict de listes).
-        """
+        
         logger.info(f"\n{'='*60}")
-        logger.info("🚀 DÉBUT DE L'ENTRAÎNEMENT")
+        logger.info(" DÉBUT DE L'ENTRAÎNEMENT")
         logger.info(f"{'='*60}")
 
         temps_debut = time.time()
@@ -393,7 +334,7 @@ class Entraineur:
 
             temps_epoch = time.time() - temps_epoch_debut
             logger.info(
-                f"📊 Epoch {epoch:3d}/{self.epochs} | "
+                f" Epoch {epoch:3d}/{self.epochs} | "
                 f"Train Loss: {train_loss:.4f} | "
                 f"Val Loss: {val_loss:.4f} | "
                 f"Val Acc: {val_acc:.4f} | "
@@ -413,7 +354,7 @@ class Entraineur:
 
             # ── Early stopping sur F1-macro ──
             if self.early_stopping(val_f1, self.modele):
-                logger.info(f"🛑 Early stopping déclenché à l'epoch {epoch}")
+                logger.info(f" Early stopping déclenché à l'epoch {epoch}")
                 break
 
         # ── Restaurer le meilleur checkpoint ──
@@ -423,7 +364,7 @@ class Entraineur:
         self._sauvegarder_historique()
 
         temps_total = time.time() - temps_debut
-        logger.info(f"\n✅ Entraînement terminé en {temps_total / 60:.1f} minutes")
+        logger.info(f"\n Entraînement terminé en {temps_total / 60:.1f} minutes")
         logger.info(f"   Meilleur F1-macro : {self.early_stopping.meilleure_valeur:.4f}")
 
         return self.historique
@@ -440,7 +381,7 @@ class Entraineur:
             },
             chemin,
         )
-        logger.info(f"💾 Modèle sauvegardé : {chemin}")
+        logger.info(f" Modèle sauvegardé : {chemin}")
 
     def _sauvegarder_historique(self) -> None:
         """Sauvegarde l'historique en JSON."""
@@ -455,26 +396,17 @@ class Entraineur:
 # ══════════════════════════════════════════
 
 class EntraineurPipeline(Entraineur):
-    """
-    Sous-classe d'Entraineur qui utilise le vrai PipelineCrise.
-
-    Surcharge _train_epoch, _eval_epoch et evaluer_test avec les
-    vrais forwards texte + image.
-
-    Args:
-        pipeline : instance de PipelineCrise (integration_pipeline.py)
-        *args/**kwargs : transmis à Entraineur.__init__
-    """
+   
 
     def __init__(self, pipeline, *args, **kwargs):
-        kwargs.pop("pipeline", None)          # évite le doublon si passé en kwarg
+        kwargs.pop("pipeline", None)        
         super().__init__(*args, **kwargs)
         self.pipeline = pipeline
         self.pipeline.train()
 
     # ──────────────────────────────────────
     def _train_epoch(self, epoch: int) -> float:
-        """Epoch d'entraînement avec le vrai pipeline texte+image."""
+       
         self.pipeline.train()
         perte_totale = 0.0
         nb_batches   = 0
@@ -486,7 +418,7 @@ class EntraineurPipeline(Entraineur):
 
             self.optimizer.zero_grad()
 
-            logits = self.pipeline(textes, images)      # ← vrai forward
+            logits = self.pipeline(textes, images)      
             loss   = self.perte_fn(logits, cibles)
 
             loss.backward()
@@ -515,12 +447,7 @@ class EntraineurPipeline(Entraineur):
     # ──────────────────────────────────────
     @torch.no_grad()
     def _eval_epoch(self, loader: DataLoader) -> Tuple[float, float, float]:
-        """
-        Évaluation avec le vrai pipeline.
-
-        Returns:
-            (perte_moyenne, accuracy, f1_macro)
-        """
+        
         self.pipeline.eval()
         perte_totale = 0.0
         correct      = 0
@@ -533,7 +460,7 @@ class EntraineurPipeline(Entraineur):
             images  = batch["image"]
             cibles  = batch["classe"].to(self.device)
 
-            logits  = self.pipeline(textes, images)     # ← vrai forward
+            logits  = self.pipeline(textes, images)  
             loss    = self.perte_fn(logits, cibles)
 
             perte_totale += loss.item()
@@ -555,12 +482,7 @@ class EntraineurPipeline(Entraineur):
     # ──────────────────────────────────────
     @torch.no_grad()
     def evaluer_test(self, test_loader: DataLoader) -> Dict:
-        """
-        Évaluation finale sur le jeu de test avec rapport complet.
-
-        Returns:
-            dict : test_loss, test_acc, test_f1, rapport, preds, cibles
-        """
+       
         self.pipeline.eval()
         perte_totale = 0.0
         correct      = 0
@@ -573,7 +495,7 @@ class EntraineurPipeline(Entraineur):
             images  = batch["image"]
             cibles  = batch["classe"].to(self.device)
 
-            logits  = self.pipeline(textes, images)     # ← vrai forward
+            logits  = self.pipeline(textes, images)   
             loss    = self.perte_fn(logits, cibles)
 
             perte_totale += loss.item()
@@ -598,7 +520,7 @@ class EntraineurPipeline(Entraineur):
         )
 
         logger.info(
-            f"📊 Test — Loss: {test_loss:.4f} | "
+            f" Test — Loss: {test_loss:.4f} | "
             f"Acc: {test_acc:.4f} | F1: {test_f1:.4f}"
         )
         logger.info(f"\n{rapport}")
@@ -624,7 +546,7 @@ def creer_entraineur(
     perte_fn    : nn.Module,
     **kwargs,
 ) -> Entraineur:
-    """Fabrique un Entraineur (infrastructure seule, sans pipeline)."""
+    
     return Entraineur(
         modele       = modele,
         train_loader = train_loader,
@@ -639,17 +561,7 @@ def charger_checkpoint(
     modele   : nn.Module,
     optimizer: Optional[torch.optim.Optimizer] = None,
 ) -> Dict:
-    """
-    Charge un checkpoint sauvegardé.
-
-    Args:
-        chemin    : chemin vers le fichier .pt
-        modele    : modèle à restaurer
-        optimizer : optimiseur à restaurer (optionnel)
-
-    Returns:
-        Historique des métriques (dict).
-    """
+    
     checkpoint = torch.load(chemin, map_location="cpu", weights_only=False)
     modele.load_state_dict(checkpoint["model_state_dict"])
 
@@ -671,7 +583,7 @@ if __name__ == "__main__":
     )
 
     print("=" * 70)
-    print("🧪 TEST — boucle_entrainement.py")
+    print(" TEST — boucle_entrainement.py")
     print("=" * 70)
 
     # ── Test via le vrai pipeline (recommandé) ──
@@ -679,13 +591,13 @@ if __name__ == "__main__":
         from sources.entrainement.integration_pipeline import lancer_entrainement
         from sources.donnees.chargeur_donnees import creer_data_loaders
 
-        print("\n📌 Chargement des données...")
+        print("\n Chargement des données...")
         train_loader, val_loader, test_loader = creer_data_loaders(
             batch_size=4,
             nb_workers=0,
         )
 
-        print("\n📌 Lancement de l'entraînement (2 epochs, CPU)...")
+        print("\n Lancement de l'entraînement (2 epochs, CPU)...")
         historique = lancer_entrainement(
             train_loader       = train_loader,
             val_loader         = val_loader,
@@ -694,18 +606,18 @@ if __name__ == "__main__":
             device             = "cpu",
             freeze_bert        = True,
             freeze_resnet      = True,
-            utiliser_lora      = False,   # désactivé pour rapidité
+            utiliser_lora      = False,   
         )
 
-        print(f"\n📊 Historique :")
+        print(f"\n Historique :")
         for cle, valeurs in historique.items():
             if valeurs:
                 print(f"   {cle:<15} : {[f'{v:.4f}' for v in valeurs]}")
 
         best_f1 = max(historique["val_f1"]) if historique["val_f1"] else 0.0
-        print(f"\n✅ Test OK — Meilleur F1-macro : {best_f1:.4f}")
+        print(f"\n Test OK — Meilleur F1-macro : {best_f1:.4f}")
 
     except Exception as e:
-        print(f"\n⚠️  Test pipeline complet impossible : {e}")
+        print(f"\n  Test pipeline complet impossible : {e}")
         print("   → Vérifiez que les données et les modules sont disponibles.")
         print("   → Pour tester uniquement l'infrastructure, lancez integration_pipeline.py")
