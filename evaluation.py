@@ -1,12 +1,3 @@
-"""
-evaluer_modele.py
-─────────────────
-Évaluation complète du modèle sur Validation ET Test.
-Génère un rapport de métriques global et par classe.
-
-Usage :
-    python evaluer_modele.py
-"""
 
 import sys
 import json
@@ -48,7 +39,7 @@ CHECKPOINT = Path("experiences/points_de_sauvegarde/meilleur_modele.pt")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 print("\n" + "=" * 65)
-print("📊 ÉVALUATION COMPLÈTE DU MODÈLE")
+print(" ÉVALUATION COMPLÈTE DU MODÈLE")
 print("=" * 65)
 print(f"   Device     : {DEVICE}")
 print(f"   Checkpoint : {CHECKPOINT}")
@@ -56,18 +47,18 @@ print(f"   Checkpoint : {CHECKPOINT}")
 # ══════════════════════════════════════════
 # 1. CHARGEMENT
 # ══════════════════════════════════════════
-print("\n📦 Chargement des données...")
+print("\n Chargement des données...")
 _, val_loader, test_loader = creer_data_loaders(batch_size=16)
 print(f"   Validation : {len(val_loader.dataset)} échantillons")
 print(f"   Test       : {len(test_loader.dataset)} échantillons")
 
-print("\n🧠 Chargement du modèle...")
+print("\n Chargement du modèle...")
 pipeline = assembler_pipeline(device=DEVICE)
 checkpoint = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
 pipeline.load_state_dict(checkpoint["model_state_dict"])
 pipeline.to(DEVICE)
 pipeline.eval()
-print("   ✅ Modèle chargé")
+print("    Modèle chargé")
 
 # ══════════════════════════════════════════
 # 2. FONCTION D'ÉVALUATION
@@ -123,10 +114,10 @@ def evaluer_loader(loader, nom="Test"):
 # 3. ÉVALUATION
 # ══════════════════════════════════════════
 
-print("\n🔄 Évaluation Validation...")
+print("\n Évaluation Validation...")
 res_val = evaluer_loader(val_loader, "Validation")
 
-print("\n🔄 Évaluation Test...")
+print("\n Évaluation Test...")
 res_test = evaluer_loader(test_loader, "Test")
 
 # ══════════════════════════════════════════
@@ -135,14 +126,14 @@ res_test = evaluer_loader(test_loader, "Test")
 
 for nom, res in [("VALIDATION", res_val), ("TEST", res_test)]:
     print(f"\n{'=' * 65}")
-    print(f"📊 RÉSULTATS — {nom}")
+    print(f" RÉSULTATS — {nom}")
     print(f"{'=' * 65}")
     print(f"\n   Accuracy        : {res['accuracy']:.4f}")
     print(f"   F1 Macro        : {res['f1_macro']:.4f}")
     print(f"   F1 Weighted     : {res['f1_weighted']:.4f}")
     print(f"   Précision Macro : {res['precision_macro']:.4f}")
     print(f"   Rappel Macro    : {res['recall_macro']:.4f}")
-    print(f"\n   📈 Par classe :")
+    print(f"\n    Par classe :")
     for nom_classe in NOMS_CLASSES:
         p = res['precision_par_classe'][nom_classe]
         r = res['recall_par_classe'][nom_classe]
@@ -154,7 +145,7 @@ for nom, res in [("VALIDATION", res_val), ("TEST", res_test)]:
 # 5. GRAPHIQUES
 # ══════════════════════════════════════════
 
-print("📊 Génération des graphiques...")
+print(" Génération des graphiques...")
 cm = res_test["confusion_matrix"]
 
 # Matrice de confusion
@@ -178,7 +169,7 @@ plt.tight_layout()
 cm_path = DOSSIER_RESULTATS / f"confusion_matrix_{HORODATAGE}.png"
 plt.savefig(cm_path, dpi=150, bbox_inches="tight")
 plt.close()
-print(f"   ✅ Matrice de confusion → {cm_path}")
+print(f"    Matrice de confusion → {cm_path}")
 
 # Barres F1/Précision/Rappel
 f1_vals = [res_test['f1_par_classe'][n] for n in NOMS_CLASSES]
@@ -206,7 +197,7 @@ ax.legend(); ax.grid(axis="y", linestyle="--", alpha=0.5)
 barres_path = DOSSIER_RESULTATS / f"metriques_barres_{HORODATAGE}.png"
 plt.savefig(barres_path, dpi=150, bbox_inches="tight")
 plt.close()
-print(f"   ✅ Barres métriques → {barres_path}")
+print(f"    Barres métriques → {barres_path}")
 
 # ══════════════════════════════════════════
 # 6. SAUVEGARDE JSON
@@ -222,17 +213,17 @@ resultats_json = {
 json_path = DOSSIER_RESULTATS / f"evaluation_complete_{HORODATAGE}.json"
 with open(json_path, "w", encoding="utf-8") as f:
     json.dump(resultats_json, f, ensure_ascii=False, indent=2)
-print(f"   ✅ JSON → {json_path}")
+print(f"    JSON → {json_path}")
 
 # ══════════════════════════════════════════
 # 7. RÉSUMÉ FINAL
 # ══════════════════════════════════════════
 
 print(f"\n{'=' * 65}")
-print(f"📊 RÉSUMÉ FINAL")
+print(f" RÉSUMÉ FINAL")
 print(f"{'=' * 65}")
 print(f"   Validation — Acc: {res_val['accuracy']:.4f} | F1: {res_val['f1_macro']:.4f}")
 print(f"   Test       — Acc: {res_test['accuracy']:.4f} | F1: {res_test['f1_macro']:.4f}")
-print(f"\n   ✅ Test Accuracy > Validation : {'OUI (bonne généralisation)' if res_test['accuracy'] > res_val['accuracy'] else 'ATTENTION (overfitting possible)'}")
-print(f"📁 Résultats : {DOSSIER_RESULTATS}/")
+print(f"\n    Test Accuracy > Validation : {'OUI (bonne généralisation)' if res_test['accuracy'] > res_val['accuracy'] else 'ATTENTION (overfitting possible)'}")
+print(f" Résultats : {DOSSIER_RESULTATS}/")
 print(f"{'=' * 65}\n")
