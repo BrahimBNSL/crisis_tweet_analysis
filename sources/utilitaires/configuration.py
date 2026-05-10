@@ -1,24 +1,14 @@
-"""
-configuration.py
-────────────────
-Hyperparamètres et chemins centralisés pour tout le projet.
-Tous les autres modules importent uniquement depuis ce fichier.
-"""
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict
 
 
-# ──────────────────────────────────────────
-# RACINE DU PROJET  (chemin absolu)
-# ──────────────────────────────────────────
-RACINE = Path(__file__).resolve().parents[2]   # remonte de sources/utilitaires/ → racine
+
+RACINE = Path(__file__).resolve().parents[2]  
 
 
-# ══════════════════════════════════════════
-# 1.  CHEMINS
-# ══════════════════════════════════════════
+
 @dataclass
 class CheminConfig:
     # Données brutes
@@ -48,9 +38,7 @@ class CheminConfig:
     dossier_figures:     Path = RACINE / "rapports" / "figures"
 
 
-# ══════════════════════════════════════════
-# 2.  CLASSES (labels de sortie)
-# ══════════════════════════════════════════
+
 @dataclass
 class ClassesConfig:
     
@@ -73,10 +61,6 @@ class ClassesConfig:
     def idx_vers_label(self) -> Dict[int, str]:
         return {i: nom for i, nom in enumerate(self.noms)}
 
-
-# ══════════════════════════════════════════
-# 3.  TEXTE  (BERTweet)
-# ══════════════════════════════════════════
 @dataclass
 class TexteConfig:
     # Modèle pré-entraîné HuggingFace
@@ -92,12 +76,10 @@ class TexteConfig:
     expandre_abreviations:  bool = True
     remplacer_nombres:      bool = True
     reduire_repetitions:    bool = True
-    mettre_minuscules:      bool = False    # BERTweet est case-sensitive
+    mettre_minuscules:      bool = False    
 
 
-# ══════════════════════════════════════════
-# 4.  IMAGE  (ResNet-50)
-# ══════════════════════════════════════════
+
 @dataclass
 class ImageConfig:
     # Modèle pré-entraîné torchvision

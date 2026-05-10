@@ -1,12 +1,4 @@
-"""
-reproductibilite.py
-────────────────────
-Graine aléatoire fixe et configuration pour la reproductibilité.
 
-Utilisation :
-    from sources.utilitaires.reproductibilite import fixer_reproductibilite
-    fixer_reproductibilite(graine=42)
-"""
 
 import logging
 import random
@@ -17,17 +9,8 @@ import torch
 logger = logging.getLogger(__name__)
 
 
-# ══════════════════════════════════════════
-# 1.  FIXATION DES GRAINES
-# ══════════════════════════════════════════
-
 def fixer_reproductibilite(graine: int = 42) -> None:
-    """
-    Fixe toutes les graines aléatoires pour assurer la reproductibilité.
-    
-    Args:
-        graine: Valeur de la graine aléatoire
-    """
+  
     # Python
     random.seed(graine)
     
@@ -48,7 +31,7 @@ def fixer_reproductibilite(graine: int = 42) -> None:
     # Variables d'environnement
     os.environ["PYTHONHASHSEED"] = str(graine)
     
-    logger.info(f"🎲 Reproductibilité activée — graine = {graine}")
+    logger.info(f" Reproductibilité activée — graine = {graine}")
     logger.info(f"   • Python random     : ✓")
     logger.info(f"   • NumPy             : ✓")
     logger.info(f"   • PyTorch CPU       : ✓")
@@ -61,15 +44,7 @@ def fixer_reproductibilite(graine: int = 42) -> None:
 # ══════════════════════════════════════════
 
 def verifier_reproductibilite(graine: int = 42) -> bool:
-    """
-    Vérifie que les graines fonctionnent correctement.
     
-    Args:
-        graine: Graine à tester
-    
-    Returns:
-        True si la reproductibilité est confirmée
-    """
     # Test 1 : torch.rand
     torch.manual_seed(graine)
     a = torch.rand(100)
@@ -89,26 +64,15 @@ def verifier_reproductibilite(graine: int = 42) -> bool:
     test2 = np.allclose(c, d)
     
     if test1 and test2:
-        logger.info("✅ Reproductibilité vérifiée !")
+        logger.info(" Reproductibilité vérifiée !")
         return True
     else:
-        logger.warning("⚠️  Problème de reproductibilité détecté !")
+        logger.warning("  Problème de reproductibilité détecté !")
         return False
 
 
-# ══════════════════════════════════════════
-# 3.  CONTEXTE MANAGER (optionnel)
-# ══════════════════════════════════════════
-
 class ContexteReproductible:
-    """
-    Context manager pour exécuter un bloc de code de manière reproductible.
-    
-    Usage :
-        with ContexteReproductible(graine=42):
-            modele = Entraineur(...)
-            modele.entrainer()
-    """
+   
     
     def __init__(self, graine: int = 42):
         self.graine = graine
@@ -121,10 +85,6 @@ class ContexteReproductible:
         pass
 
 
-# ══════════════════════════════════════════
-# 4.  TEST RAPIDE
-# ══════════════════════════════════════════
-
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
@@ -132,20 +92,20 @@ if __name__ == "__main__":
     )
     
     print("=" * 70)
-    print("🧪 TEST — Reproductibilité")
+    print(" TEST — Reproductibilité")
     print("=" * 70)
     
     # Test 1 : Fixation des graines
-    print("\n📌 Test 1 — Fixation des graines")
+    print("\n Test 1 — Fixation des graines")
     fixer_reproductibilite(graine=42)
     
     # Test 2 : Vérification
-    print("\n📌 Test 2 — Vérification de la reproductibilité")
+    print("\n Test 2 — Vérification de la reproductibilité")
     ok = verifier_reproductibilite(graine=42)
     print(f"   Résultat : {'✅ OK' if ok else '✗ Échec'}")
     
     # Test 3 : Deux exécutions identiques
-    print("\n📌 Test 3 — Deux exécutions doivent être identiques")
+    print("\n Test 3 — Deux exécutions doivent être identiques")
     
     fixer_reproductibilite(graine=123)
     x1 = torch.randn(5)
@@ -159,7 +119,7 @@ if __name__ == "__main__":
     print(f"   NumPy identique : {np.allclose(y1, y2)}")
     
     # Test 4 : Context manager
-    print("\n📌 Test 4 — Context manager")
+    print("\n Test 4 — Context manager")
     with ContexteReproductible(graine=99):
         x3 = torch.randn(3)
     
@@ -168,4 +128,4 @@ if __name__ == "__main__":
     
     print(f"   Contexte identique : {torch.allclose(x3, x4)}")
     
-    print(f"\n✅ reproductibilite.py — Tout OK !")
+    print(f"\n reproductibilite.py — Tout OK !")
