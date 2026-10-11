@@ -1,15 +1,24 @@
-# Classification de Tweets de Crise
+# Crisis Tweet Classification
 
-Système de deep learning pour la classification automatique de tweets postés lors de catastrophes naturelles. Combine l'analyse du texte et des images pour identifier les messages urgents nécessitant une intervention rapide.
+A deep learning system for automatically classifying tweets posted during natural disasters. It combines text and image analysis to identify urgent messages that may require rapid intervention.
 
-Développé par Bensalah Brahim et Rafik Asbai.
+**Developed by:** Bensalah Brahim and Rafik Asbai.
 
 ## Architecture
-BERTweet + LoRA (texte) | ResNet-50 gelé (image) | Cross-Attention 8 têtes + Gate Network (fusion) | 3 classes : Urgence, Information, Non pertinent. Seulement 2.2M paramètres entraînables sur 160M.
 
-## Performances
-Accuracy : 83.69% | F1 Macro : 81.77% | F1 Urgence : 88.7% (Rappel : 90.3%)
+**BERTweet + LoRA (Text)** | **Frozen ResNet-50 (Image)** | **8-Head Cross-Attention + Gating Network (Fusion)** | **3 Classes: Urgency, Information, Irrelevant**
 
-## Données
-60 000 tweets issus de CrisisMMD, Multimodal et CrisisLexT26 — 33 catastrophes couvertes.
+Only **2.2 million trainable parameters** out of a 160-million-parameter model.
 
+## Performance
+
+| Metric | Score |
+|---|---:|
+| Accuracy | 83.69% |
+| Macro F1-score | 81.77% |
+| Urgency F1-score | 88.7% |
+| Urgency Recall | 90.3% |
+
+## Dataset
+
+60,000 tweets collected from CrisisMMD, Multimodal, and CrisisLexT26, covering **33 natural disasters**.
